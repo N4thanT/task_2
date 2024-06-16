@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
+    <link href="https://js.radar.com/v4.3.0/radar.css" rel="stylesheet">
+    <script src="https://js.radar.com/v4.3.0/radar.min.js"></script>
+    <style>
+        #form-container {
+            display: none;
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 1000;
+            background: white;
+            padding: 10px;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div id="map" style="width: 100%; height: 500px;"></div>
+    <div id="form-container">
+        <input type="text" id="name" placeholder="Marker Name" required>
+        <textarea id="description" placeholder="Description"></textarea>
+        <input type="hidden" id="lat">
+        <input type="hidden" id="lng">
+        <button onclick="addMarkerToDatabase()">Add Marker</button>
+    </div>
+
+    <script type="text/javascript">
+        Radar.initialize('API_KEY');
+
+
+    // Create a map
+    const map = Radar.ui.map({
+        container: 'map',
+        style: 'radar-default-v1',
+        center: [22.4919, 58.2550], // Center coordinates
+        zoom: 11
+    });
+
+    let tempMarker = null;
+
+    // Load existing markers from the database
+    fetch('markers.php', {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' }
+    })
+    .then(response => response.json())
+    .then(data => {
+        data.forEach(marker => {
+            Radar.ui.marker({
+                popup: { text: marker.name }
+            })
+            .setLngLat([marker.longitude, marker.latitude])
+            .addTo(map);
+        });
+    });
+
+    // Add marker on map click
+    map.on('click', (e) => {
+        const { lng, lat } = e.lngLat;
+
+        // Remove temporary marker if exists
+        if (tempMarker) {
+            tempMarker.remove();
+        }
+
+        // Create temporary marker from click location
+        tempMarker = Radar.ui.marker({ popup: { text: 'New Location' } })
+            .setLngLat([lng, lat])
+            .addTo(map);
+
+        // Show form
+        document.getElementById('form-container').style.display = 'block';
+        document.getElementById('lng').value = lng;
+        document.getElementById('lat').value = lat;
+    });
+
+    function addMarkerToDatabase() {
+        const name = document.getElementById('name').value;
+        const description = document.getElementById('description').value;
+        const lng = document.getElementById('lng').value;
+        const lat = document.getElementById('lat').value;
+
+        fetch('markers.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, description, latitude: lat, longitude: lng })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Marker added successfully!');
+                document.getElementById('form-container').style.display = 'none';
+
+                // Add a new marker with the updated text
+                tempMarker = Radar.ui.marker({
+                    popup: { text: name }
+                })
+                .setLngLat([lng, lat])
+                .addTo(map);
+            } else {
+                alert('Failed to add marker');
+            }
+        });
+    }
+</script>
+</body>
+</html>
